@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Research Data Collector",
+  "version": "1.3",
+  "icons": { 
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png" 
+  },
+  "description": "Academic data collection tool for behavioral analysis in board games.",
+  "content_scripts": [
+    {
+      "js": ["scripts/main.js"],
+      "matches": [
+        "https://www.chess.com/*",
+        "https://chess.com/*"
+      ]
+    }
+  ]
+}
