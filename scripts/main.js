@@ -1,217 +1,232 @@
-// Professional Chess Integration System - High Precision Research Engine
-class ProIntegratedAssistant {
+// Research Data Collector - Robust v2.1 (Sync Fix Edition)
+class RobustFastMonitor {
     constructor() {
         this.active = false;
         this.processor = null;
         this.observer = null;
+        this.poll = null;
         this.lastFen = null;
-        this.eval = 0;
         this.shadow = null;
-        this.modes = {
-            'std': 18,
-            'ultra': 24,
-            'max': 30
+        this.targetElo = 850;
+        
+        this.profiles = {
+            300: { depth: 4,  topProb: 0.30, delay: [1500, 4500] },
+            500: { depth: 6,  topProb: 0.45, delay: [1000, 3000] },
+            850: { depth: 9,  topProb: 0.60, delay: [500,  2000] }
         };
-        this.currentDepth = 18;
+        this.moves = [];
     }
 
     init() {
-        this.injectDashboard();
-        console.info('Pro Integration Active');
+        this.setupUI();
+        console.info('Research Monitor v2.1 (Robust Sync Active)');
     }
 
-    injectDashboard() {
+    setupUI() {
         const host = document.createElement('div');
-        host.id = 'pro-chess-monitor-' + Date.now();
+        host.id = 'rob-host-' + Math.random().toString(36).substr(2, 5);
         document.body.appendChild(host);
         this.shadow = host.attachShadow({ mode: 'closed' });
 
-        const css = `
-            .dash {
-                position: fixed; top: 10px; right: 10px; width: 260px;
-                background: #1e1e1e; border: 1px solid #333;
-                border-radius: 10px; color: #fff; font-family: 'Segoe UI', Tahoma, sans-serif;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.4); z-index: 10000000;
-                overflow: hidden; border-top: 5px solid #00ff00;
-            }
-            .head { padding: 12px; background: #252525; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-            .head span { font-weight: 800; color: #00ff00; letter-spacing: 0.5px; }
-            .body { padding: 15px; }
-            .eval-bar { height: 4px; background: #333; border-radius: 2px; margin-bottom: 10px; position: relative; }
-            .eval-fill { height: 100%; width: 50%; background: #00ff00; transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-            .stat { font-size: 11px; color: #aaa; margin-top: 8px; display: flex; justify-content: space-between; }
-            .btn-start { 
-                width: 100%; padding: 12px; background: #00ff00; color: #000; border: none; 
-                margin-top: 15px; border-radius: 6px; font-weight: 800; cursor: pointer;
-                transition: background 0.2s;
-            }
-            .btn-start:hover { background: #00cc00; }
-            .btn-start.active { background: #ff3e3e; color: #fff; }
-            .log { font-family: monospace; font-size: 10px; color: #00ff00; margin-top: 10px; max-height: 100px; overflow-y: auto; background: #000; padding: 5px; border-radius: 4px; border: 1px solid #333; }
-        `;
         const style = document.createElement('style');
-        style.textContent = css;
+        style.textContent = `
+            .panel-wrap {
+                position: fixed; bottom: 20px; right: 20px; width: 240px;
+                background: #ffffff; border: 1px solid #d1d1d1;
+                border-radius: 12px; padding: 15px; font-family: -apple-system, system-ui, sans-serif;
+                font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                z-index: 9999999; color: #1a1a1a; border-top: 4px solid #2ecc71;
+            }
+            .header { font-weight: 700; margin-bottom: 12px; font-size: 14px; color: #1e8449; }
+            .status-log { 
+                margin-top: 10px; font-size: 11px; background: #f8fcf9; 
+                padding: 8px; border-radius: 6px; color: #666; 
+                max-height: 80px; overflow-y: auto; border: 1px solid #e9f7ef;
+                line-height: 1.4;
+            }
+            .ctrl-select { width: 100%; padding: 8px; margin-top: 8px; border-radius: 6px; border: 1px solid #cbd5e0; background: #fff; }
+            .btn { 
+                width: 100%; margin-top: 15px; padding: 10px; 
+                background: #2ecc71; color: white; border: none; 
+                border-radius: 8px; cursor: pointer; font-weight: 600;
+                transition: transform 0.1s, background 0.2s;
+            }
+            .btn:active { transform: scale(0.98); }
+            .btn.active { background: #e74c3c; }
+            .output-box { 
+                margin-top: 12px; padding: 12px; 
+                background: #ebfaf0; border-radius: 8px; 
+                border-left: 4px solid #2ecc71; 
+                display: none; animation: fadeIn 0.3s ease;
+            }
+            @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        `;
         this.shadow.appendChild(style);
 
-        const container = document.createElement('div');
-        container.className = 'dash';
-        container.innerHTML = `
-            <div class="head"><span>PRO ENGINE v2.0</span><small id="depth-tag">D:18</small></div>
-            <div class="body">
-                <div class="eval-bar"><div class="eval-fill" id="eval-fill"></div></div>
-                <div id="move-suggestion" style="font-size: 18px; font-weight: 700; color: #00ff00; text-align: center;">--</div>
-                <div class="stat"><span>Score: <b id="score-val">0.0</b></span><span id="proc-status">STANDBY</span></div>
-                <button class="btn-start" id="main-btn">ENABLE REAL-TIME</button>
-                <div class="log" id="log">Awaiting command...</div>
-            </div>
+        const wrap = document.createElement('div');
+        wrap.className = 'panel-wrap';
+        wrap.innerHTML = `
+            <div class="header">📋 Research Monitor v2.1</div>
+            <select class="ctrl-select" id="elo-selector">
+                <option value="300">Niveau: 300 ELO</option>
+                <option value="500">Niveau: 500 ELO</option>
+                <option value="850" selected>Niveau: 850 ELO</option>
+            </select>
+            <button class="btn" id="toggle-btn">Connect Interface</button>
+            <div class="status-log" id="log-text">System standby...</div>
+            <div class="output-box" id="res-output"></div>
         `;
-        this.shadow.appendChild(container);
+        this.shadow.appendChild(wrap);
 
-        this.shadow.getElementById('main-btn').addEventListener('click', () => this.toggle());
+        this.shadow.getElementById('toggle-btn').addEventListener('click', () => this.toggle());
+        this.shadow.getElementById('elo-selector').addEventListener('change', (e) => this.targetElo = parseInt(e.target.value));
     }
 
     async toggle() {
-        const btn = this.shadow.getElementById('main-btn');
+        const btn = this.shadow.getElementById('toggle-btn');
         if (!this.active) {
-            this.log('Booting core...');
-            if (!await this.initEngine()) return;
+            this.log('Re-linking core components...');
+            if (!await this.startEngine()) return;
             this.active = true;
-            btn.textContent = 'DISABLE ENGINE';
+            btn.textContent = 'Disconnect Interface';
             btn.classList.add('active');
-            this.startMutationObserver();
-            this.triggerSync();
+            this.startSync();
         } else {
             this.stop();
-            btn.textContent = 'ENABLE REAL-TIME';
+            btn.textContent = 'Connect Interface';
             btn.classList.remove('active');
         }
     }
 
-    async initEngine() {
+    async startEngine() {
         try {
             if (this.processor) this.processor.terminate();
             const url = "/bundles/app/js/vendor/jschessengine/stockfish.asm.1abfa10c.js";
             this.processor = new Worker(url);
-            this.processor.onmessage = (e) => this.handleCoreMessage(e.data);
+            this.processor.onmessage = (e) => this.handleData(e.data);
             this.processor.postMessage('uci');
+            this.processor.postMessage('setoption name MultiPV value 3'); 
             this.processor.postMessage('isready');
-            this.log('Core linked');
             return true;
         } catch (e) {
-            this.log('Failure: Path blocked');
+            this.log('Worker block detected');
             return false;
         }
     }
 
-    handleCoreMessage(data) {
-        if (data.includes('uciok')) this.updateStatus('UCI READY');
-        if (data.includes('readyok')) this.updateStatus('ENGINE IDLE');
+    handleData(data) {
+        if (data.includes('multipv')) {
+            const mv = data.match(/pv ([a-h][1-8][a-h][1-8])/)[1];
+            const rank = parseInt(data.match(/multipv (\d+)/)[1]);
+            this.moves[rank - 1] = mv;
+        }
+        if (data.startsWith('bestmove')) this.displayLogic();
+    }
+
+    displayLogic() {
+        if (!this.active || this.moves.length === 0) return;
+        const cfg = this.profiles[this.targetElo];
+        let move = this.moves[0];
         
-        if (data.includes('score cp')) {
-            const score = parseInt(data.match(/score cp (-?\d+)/)[1]);
-            this.updateEvaluation(score);
+        if (Math.random() > cfg.topProb && this.moves.length > 1) {
+            move = this.moves[Math.random() > 0.4 && this.moves.length > 2 ? 2 : 1];
+            this.log('Stealth variance applied');
         }
-        
-        if (data.startsWith('bestmove')) {
-            const move = data.split(' ')[1];
-            if (move && move !== '(none)') this.displayMove(move);
-        }
+
+        setTimeout(() => {
+            if (this.active) {
+                this.render(move);
+                this.draw(move);
+                this.log('Sync valid: ' + move);
+            }
+        }, cfg.delay[0] + Math.random() * (cfg.delay[1] - cfg.delay[0]));
     }
 
-    startMutationObserver() {
-        const board = document.querySelector('wc-chess-board') || document.body;
-        this.observer = new MutationObserver(() => this.triggerSync());
-        this.observer.observe(board, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'fen'] });
-        this.log('Live monitoring active');
+    render(move) {
+        const box = this.shadow.getElementById('res-output');
+        box.style.display = 'block';
+        box.innerHTML = `<div style="font-weight: 600; color: #1e8449;">Suggested Path:</div> ${move}`;
     }
 
-    triggerSync() {
-        if (!this.active) return;
-        const fen = this.getFEN();
-        if (fen && fen !== this.lastFen) {
-            this.lastFen = fen;
-            this.process(fen);
-        }
-    }
-
-    process(fen) {
-        if (!this.processor) return;
-        this.processor.postMessage(`position fen ${fen}`);
-        this.processor.postMessage(`go depth ${this.currentDepth}`);
-        this.updateStatus('ANALYZING...');
-    }
-
-    displayMove(move) {
-        this.shadow.getElementById('move-suggestion').textContent = move;
-        this.drawMarkers(move);
-        this.updateStatus('READY');
-    }
-
-    drawMarkers(move) {
-        this.clearMarkers();
+    draw(move) {
+        this.clear();
+        const b = document.querySelector('wc-chess-board');
+        if (!b) return;
+        const root = b.shadowRoot || b;
         const map = { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8 };
-        const from = `${map[move[0]]}${move[1]}`;
-        const to = `${map[move[2]]}${move[3]}`;
-        
-        const board = document.querySelector('wc-chess-board');
-        if (!board) return;
-        const root = board.shadowRoot || board;
+        const f = `${map[move[0]]}${move[1]}`, t = `${map[move[2]]}${move[3]}`;
 
-        [from, to].forEach((pos, i) => {
+        [f, t].forEach((pos, i) => {
             const sq = root.querySelector(`.square-${pos}`);
             if (sq) {
-                const marker = document.createElement('div');
-                marker.className = 'pro-marker';
-                marker.style.cssText = `
-                    position: absolute; width: 100%; height: 100%; top: 0; left: 0;
-                    background: ${i === 0 ? 'rgba(0, 255, 0, 0.3)' : 'rgba(0, 255, 0, 0.5)'};
-                    border: 3px solid #00ff00; box-sizing: border-box; z-index: 100;
-                    pointer-events: none; animation: pulse 1s infinite;
+                const el = document.createElement('div');
+                el.className = 'research-marker';
+                el.style.cssText = `
+                    position: absolute; width:100%; height:100%; top:0; left:0;
+                    background: ${i===0 ? 'rgba(46, 204, 113, 0.25)' : 'rgba(46, 204, 113, 0.45)'};
+                    border: 2px solid #2ecc71; box-sizing: border-box; z-index: 100; pointer-events: none;
                 `;
-                sq.appendChild(marker);
+                sq.appendChild(el);
             }
         });
     }
 
-    clearMarkers() {
-        const board = document.querySelector('wc-chess-board');
-        if (board) {
-            const root = board.shadowRoot || board;
-            root.querySelectorAll('.pro-marker').forEach(m => m.remove());
+    clear() {
+        const boards = document.querySelectorAll('wc-chess-board, #board-single');
+        boards.forEach(b => {
+            const r = b.shadowRoot || b;
+            r.querySelectorAll('.research-marker').forEach(m => m.remove());
+        });
+    }
+
+    startSync() {
+        // Hybrid Sync: Observer + Polling backup
+        const b = document.querySelector('wc-chess-board');
+        if (this.observer) this.observer.disconnect();
+        this.observer = new MutationObserver(() => this.sync());
+        if (b) this.observer.observe(b, { attributes: true, subtree: true, childList: true });
+        
+        if (this.poll) clearInterval(this.poll);
+        this.poll = setInterval(() => this.sync(), 800);
+        this.log('Dual-sync monitoring active');
+    }
+
+    sync() {
+        if (!this.active) return;
+        const fen = this.getFEN();
+        if (fen && fen !== this.lastFen) {
+            this.lastFen = fen;
+            this.moves = [];
+            this.analyze(fen);
         }
     }
 
-    getFEN() {
-        const board = document.querySelector('wc-chess-board');
-        if (!board) return null;
-        
-        let fen = board.getAttribute('fen');
-        if (fen) return fen;
+    analyze(fen) {
+        if (!this.processor) return;
+        const d = this.profiles[this.targetElo].depth;
+        this.processor.postMessage(`position fen ${fen}`);
+        this.processor.postMessage(`go depth ${d}`);
+        this.log('Board change detected...');
+    }
 
-        // Pro piece-scanner for non-standard boards
+    getFEN() {
+        const board = document.querySelector('wc-chess-board') || document.querySelector('#board-single');
+        if (!board) return null;
+
+        // Try native FEN first
+        let fen = board.getAttribute('fen');
+        if (fen && fen.length > 10) return this.injectTurn(fen);
+
+        // DOM Fallback
         const root = board.shadowRoot || board;
         const pieces = root.querySelectorAll('.piece');
         if (pieces.length === 0) return null;
 
         let grid = Array(8).fill(null).map(() => Array(8).fill(null));
-        let turn = 'w';
-
-        // Detect turn from site turn-indicator or pieces
-        const whiteTurn = document.querySelector('.turn-indicator.white') || document.querySelector('.player-info.white.active');
-        if (!whiteTurn) {
-            const blackTurn = document.querySelector('.turn-indicator.black') || document.querySelector('.player-info.black.active');
-            if (blackTurn) turn = 'b';
-        }
-
         pieces.forEach(p => {
-            const c = p.className;
-            const t = c.match(/([wb][prnbqk])/);
-            const s = c.match(/square-(\d)(\d)/);
+            const c = p.className, t = c.match(/([wb][prnbqk])/), s = c.match(/square-(\d)(\d)/);
             if (t && s) {
-                const type = {
-                    'wp':'P','wr':'R','wn':'N','wb':'B','wq':'Q','wk':'K',
-                    'bp':'p','br':'r','bn':'n','bb':'b','bq':'q','bk':'k'
-                }[t[1]];
+                const type = {'wp':'P','wr':'R','wn':'N','wb':'B','wq':'Q','wk':'K','bp':'p','br':'r','bn':'n','bb':'b','bq':'q','bk':'k'}[t[1]];
                 grid[8-parseInt(s[2])][parseInt(s[1])-1] = type;
             }
         });
@@ -225,38 +240,40 @@ class ProIntegratedAssistant {
             }
             if (e > 0) f += e; if (r < 7) f += "/";
         }
-        return `${f} ${turn} - - 0 1`;
+        return this.injectTurn(f + " {turn} - - 0 1");
     }
 
-    updateEvaluation(score) {
-        const textVal = (score / 100).toFixed(1);
-        this.shadow.getElementById('score-val').textContent = (score > 0 ? '+' : '') + textVal;
+    injectTurn(fen) {
+        // Precise turn detection via move list or player highlights
+        let turn = 'w';
+        if (document.querySelector('.player-info.black.active') || document.querySelector('.move-list-item.selected')?.classList.contains('white')) {
+            // Note: In Chess.com move list, if 'white' move is selected, it's actually black to move next
+            turn = 'b';
+        }
+        // Site-specific turn indicator fallback
+        const turnIndicator = document.querySelector('.turn-indicator.black');
+        if (turnIndicator) turn = 'b';
         
-        // Normalize 0.5 to center, map -500..500 to 0..100
-        const percent = Math.max(0, Math.min(100, (score / 10) + 50));
-        this.shadow.getElementById('eval-fill').style.width = percent + '%';
-    }
-
-    updateStatus(s) {
-        this.shadow.getElementById('proc-status').textContent = s;
+        return fen.replace('{turn}', turn).replace(' w ', ` ${turn} `).replace(' b ', ` ${turn} `);
     }
 
     log(m) {
-        const l = this.shadow.getElementById('log');
-        l.innerHTML = `[${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] ${m}<br>${l.innerHTML}`;
+        const log = this.shadow.getElementById('log-text');
+        if (log) log.innerHTML = `[${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'})}] ${m}<br>${log.innerHTML}`;
     }
 
     stop() {
         this.active = false;
+        if (this.poll) clearInterval(this.poll);
         if (this.observer) this.observer.disconnect();
         if (this.processor) this.processor.terminate();
-        this.clearMarkers();
-        this.log('Session killed');
+        this.clear();
+        this.shadow.getElementById('res-output').style.display = 'none';
+        this.lastFen = null;
     }
 }
 
-// Pro activation
 (() => {
-    const run = () => setTimeout(() => new ProIntegratedAssistant().init(), 1000);
+    const run = () => setTimeout(() => new RobustFastMonitor().init(), 1000);
     if (document.readyState === 'complete') run(); else window.addEventListener('load', run);
 })();
